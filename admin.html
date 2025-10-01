@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Salon Nunzio – Admin</title>
+  <link rel="stylesheet" href="assets/styles.css" />
+  <style>
+    .admin-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+    .table { width:100%; border-collapse: collapse; }
+    .table th, .table td { padding:10px; border-bottom:1px solid var(--stroke); text-align:left; }
+    .table th { opacity:.8; font-weight:600; }
+    .inline { display:flex; gap:10px; align-items:center; }
+    .danger { background:#ef4444; color:white; }
+    .muted { opacity:.7; font-size:12px; margin-top:6px; }
+    .pin-wrap { display:grid; gap:10px; background:var(--card); padding:18px; border:1px solid rgba(255,255,255,.06); border-radius:12px; max-width:420px;}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <img src="assets/logo.svg" alt="Salon Nunzio" class="logo" />
+    <h1>Admin – Einstellungen</h1>
+  </header>
+
+  <main class="container" id="app">
+    <!-- Simple PIN-Gate für Demo -->
+    <section id="pinGate">
+      <div class="pin-wrap">
+        <strong>Admin-Zugang</strong>
+        <input id="pinInput" type="password" placeholder="PIN eingeben (Demo)" />
+        <button id="pinBtn" class="primary">Weiter</button>
+        <p class="muted">Hinweis: Für die Vorführung reicht ein einfacher PIN-Schutz (nur lokal). Für Produktion später richtiger Login.</p>
+      </div>
+    </section>
+
+    <section id="adminPanel" style="display:none;">
+      <div class="admin-bar">
+        <div>
+          <strong>Services verwalten</strong>
+          <div class="muted">Steuere Anzahlung, Beträge und Payment-Links. Änderungen gelten sofort (nur auf diesem Gerät, da Demo).</div>
+        </div>
+        <div class="inline">
+          <button id="saveBtn" class="primary">Speichern</button>
+          <button id="resetBtn" class="danger">Overrides löschen</button>
+        </div>
+      </div>
+
+      <table class="table" id="servicesTable">
+        <thead>
+          <tr>
+            <th>Service</th>
+            <th>Dauer (Min)</th>
+            <th>Anzahlung nötig?</th>
+            <th>Anzahlung (€)</th>
+            <th>Stripe Payment Link</th>
+          </tr>
+        </thead>
+        <tbody id="servicesBody">
+          <!-- Dynamisch via JS -->
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    // --- Simple Demo-PIN (lokal). Passe gern an:
+    const ADMIN_PIN = "nunzio123";
+
+    const el = sel => document.querySelector(sel);
+    const servicesUrl = 'data/services.json';
+    const OV_KEY = 'nnz-services-overrides';
+
+    const pinGate = el('#pinGate');
+    const adminPanel = el('#adminPanel');
+    const pinInput = el('#pinInput');
+    const pinBtn = el('#pinBtn');
+    const servicesBody = el('#servicesBody');
+    const saveBtn = el('#saveBtn');
+    const resetBtn = el('#resetBtn');
+
+    let baseServices = [];
+    let overrides = {}; // { [id]: { requireDeposit, deposit, paymentLink } }
+
+    function loadOverrides(){
+      try {
+        overrides = JSON.parse(localStorage.getItem(OV_KEY) || '{}');
+      } catch { overrides = {}; }
+    }
+    function saveOverrides(){
+      localStorage.setItem(OV_KEY, JSON.stringify(overrides));
+    }
+
+    function mergedService(s){
+      const ov = overrides[s.id] || {};
+      return { ...s, ...ov };
+    }
+
+    function renderRows(){
+      servicesBody.innerHTML = '';
+      baseServices.forEach(s => {
+        const ms = mergedService(s);
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${s.name}</strong><div class="muted">${s.id}</div></td>
+          <td>${s.durationMin}</td>
+          <td>
+            <label class="inline">
+              <input type="checkbox" data-id="${s.id}" data-field="requireDeposit" ${ms.requireDeposit ? 'checked' : ''}/>
+              <span>erforderlich</span>
+            </label>
+          </td>
+          <td>
+            <input type="number" min="0" step="1" data-id="${s.id}" data-field="deposit" value="${ms.deposit ?? s.deposit ?? 0}" />
+          </td>
+          <td>
+            <input type="url" placeholder="https://buy.stripe.com/..." data-id="${s.id}" data-field="paymentLink" value="${ms.paymentLink ?? s.paymentLink ?? ''}" />
+          </td>
+        `;
+        servicesBody.appendChild(tr);
+      });
+
+      // Event-Delegation für Inputs
+      servicesBody.querySelectorAll('input').forEach(inp => {
+        inp.addEventListener('input', (e) => {
+          const id = e.target.getAttribute('data-id');
+          const field = e.target.getAttribute('data-field');
+          overrides[id] = overrides[id] || {};
+          if (e.target.type === 'checkbox') {
+            overrides[id][field] = e.target.checked;
+          } else if (e.target.type === 'number') {
+            overrides[id][field] = Number(e.target.value);
+          } else {
+            overrides[id][field] = e.target.value;
+          }
+        });
+      });
+    }
+
+    async function boot(){
+      loadOverrides();
+      const res = await fetch(servicesUrl);
+      baseServices = await res.json();
+
+      // Falls requireDeposit im Override noch nicht existiert: Default = true, wenn PaymentLink vorhanden, sonst false
+      baseServices.forEach(s => {
+        if (!overrides[s.id] || typeof overrides[s.id].requireDeposit === 'undefined') {
+          const def = Boolean(s.paymentLink);
+          overrides[s.id] = { ...(overrides[s.id]||{}), requireDeposit: def };
+        }
+      });
+
+      renderRows();
+    }
+
+    pinBtn.addEventListener('click', () => {
+      if (pinInput.value === ADMIN_PIN) {
+        pinGate.style.display = 'none';
+        adminPanel.style.display = 'block';
+        boot();
+      } else {
+        alert('Falscher PIN.');
+      }
+    });
+
+    saveBtn.addEventListener('click', () => {
+      saveOverrides();
+      alert('Gespeichert. (Wirksam sofort – Kundenseite muss ggf. neu geladen werden)');
+    });
+
+    resetBtn.addEventListener('click', () => {
+      if (confirm('Alle Overrides löschen?')) {
+        localStorage.removeItem(OV_KEY);
+        loadOverrides();
+        renderRows();
+        alert('Zurückgesetzt. (Nutze Basisdaten aus services.json)');
+      }
+    });
+
+    // Komfort: Enter auf PIN
+    pinInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') pinBtn.click();
+    });
+  </script>
+</body>
+</html>
