@@ -156,7 +156,7 @@ form.addEventListener('submit', async (e) => {
       service_date: dateInput.value,
       service_time: timeSelect.value,
       deposit_amount: selectedService.requireDeposit ? (selectedService.deposit ?? 0) + " €" : "0 €",
-      salon_name: "Salon Nunzio"
+      salon_name: "Salon"
     });
   } catch (_) {}
 
