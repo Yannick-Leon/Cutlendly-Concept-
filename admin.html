@@ -60,6 +60,32 @@
           <!-- Dynamisch via JS -->
         </tbody>
       </table>
+      <hr style="margin:24px 0; border-color: rgba(255,255,255,.06);" />
+
+<div class="admin-bar">
+  <div>
+    <strong>Warteliste</strong>
+    <div class="muted">Zeigt eingetragene Kund:innen pro Datum. (Demo: localStorage)</div>
+  </div>
+  <div class="inline">
+    <button id="refreshWaitlistBtn" class="primary">Aktualisieren</button>
+    <button id="clearAllWaitlistBtn" class="danger">Alle Wartelisten löschen</button>
+  </div>
+</div>
+
+<table class="table" id="waitlistTable">
+  <thead>
+    <tr>
+      <th>Datum</th>
+      <th>Name</th>
+      <th>E-Mail</th>
+      <th>Service</th>
+      <th>Stylist</th>
+      <th>Aktion</th>
+    </tr>
+  </thead>
+  <tbody id="waitlistBody"></tbody>
+</table>
     </section>
   </main>
 
@@ -182,6 +208,81 @@
     pinInput.addEventListener('keydown', e => {
       if (e.key === 'Enter') pinBtn.click();
     });
+
+    // ---- Warteliste im Admin ----
+const wlBody = document.getElementById('waitlistBody');
+const refreshWlBtn = document.getElementById('refreshWaitlistBtn');
+const clearAllWlBtn = document.getElementById('clearAllWaitlistBtn');
+
+function loadAllWaitlists(){
+  const entries = [];
+  for (let i=0; i<localStorage.length; i++){
+    const k = localStorage.key(i);
+    if (k && k.startsWith('waitlist-')){
+      const date = k.replace('waitlist-','');
+      try {
+        const list = JSON.parse(localStorage.getItem(k) || '[]');
+        list.forEach(item => entries.push({ date, ...item, _k: k }));
+      } catch {}
+    }
+  }
+  // sortiere nach Datum/Erstelldatum
+  entries.sort((a,b) => (a.date.localeCompare(b.date)) || (a.createdAt.localeCompare(b.createdAt)));
+  return entries;
+}
+
+function renderWaitlist(){
+  wlBody.innerHTML = '';
+  const entries = loadAllWaitlists();
+  if (!entries.length){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="6" class="muted">Keine Wartelisteneinträge</td>`;
+    wlBody.appendChild(tr);
+    return;
+  }
+  entries.forEach((e, idx) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${e.date}</td>
+      <td>${e.name}</td>
+      <td>${e.email}</td>
+      <td>${e.serviceName || e.serviceId}</td>
+      <td>${e.stylist}</td>
+      <td><button data-idx="${idx}" class="primary" style="padding:6px 10px;">Entfernen</button></td>
+    `;
+    wlBody.appendChild(tr);
+  });
+
+  // Entfernen-Buttons
+  wlBody.querySelectorAll('button').forEach((btn, i) => {
+    btn.addEventListener('click', () => {
+      const entries = loadAllWaitlists();
+      const target = entries[i];
+      if (!target) return;
+      // Eintrag aus dem jeweiligen waitlist-KEY entfernen
+      const list = JSON.parse(localStorage.getItem(target._k) || '[]');
+      const newList = list.filter(item => !(item.createdAt === target.createdAt && item.email === target.email));
+      if (newList.length) localStorage.setItem(target._k, JSON.stringify(newList));
+      else localStorage.removeItem(target._k);
+      renderWaitlist();
+    });
+  });
+}
+
+refreshWlBtn.addEventListener('click', renderWaitlist);
+clearAllWlBtn.addEventListener('click', () => {
+  if (!confirm('Alle Wartelisten wirklich löschen?')) return;
+  const keys = [];
+  for (let i=0; i<localStorage.length; i++){
+    const k = localStorage.key(i);
+    if (k && k.startsWith('waitlist-')) keys.push(k);
+  }
+  keys.forEach(k => localStorage.removeItem(k));
+  renderWaitlist();
+});
+
+// beim Öffnen das erste Mal rendern
+renderWaitlist();
   </script>
 </body>
 </html>
