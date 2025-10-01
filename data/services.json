@@ -1,0 +1,16 @@
+[
+  {
+    "id": "cut-men-30",
+    "name": "Herrenhaarschnitt",
+    "durationMin": 30,
+    "deposit": 10,
+    "paymentLink": "https://buy.stripe.com/test_xxx"
+  },
+  {
+    "id": "cut-women-50",
+    "name": "Damenhaarschnitt",
+    "durationMin": 50,
+    "deposit": 20,
+    "paymentLink": "https://buy.stripe.com/test_yyy"
+  }
+]
