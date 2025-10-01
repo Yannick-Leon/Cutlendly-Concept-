@@ -36,3 +36,9 @@ input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px r
   background:#0b1220; border:1px dashed var(--stroke); padding:12px; border-radius:10px; font-size:14px; color:var(--muted);
 }
 .note { opacity:.75; font-size:12px; margin: 0; }
+
+.primary[disabled] {
+  opacity: .5;
+  cursor: not-allowed;
+  filter: grayscale(40%);
+}
