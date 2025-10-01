@@ -303,3 +303,23 @@ form.addEventListener('submit', async (e) => {
 
   ensureWaitlistUI();
 })();
+
+// Warteliste-Eintrag Demo für morgen 14:00
+(function seedWaitlist(){
+  const d = new Date();
+  d.setDate(d.getDate() + 1); // morgen
+  const dateStr = d.toISOString().split('T')[0];
+  const key = `waitlist-${dateStr}`;
+  const entry = {
+    createdAt: new Date().toISOString(),
+    name: "Max Mustermann",
+    email: "max@example.com",
+    serviceId: "cut-men-30",
+    serviceName: "Herrenhaarschnitt",
+    stylist: "ANY"
+  };
+  const list = JSON.parse(localStorage.getItem(key) || '[]');
+  list.push(entry);
+  localStorage.setItem(key, JSON.stringify(list));
+  console.log("Warteliste-Eintrag angelegt für", dateStr, "14:00");
+})();
