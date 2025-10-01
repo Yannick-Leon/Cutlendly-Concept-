@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SmartCut – Termin buchen</title>
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <img src="assets/logo.svg" alt="SmartCut" class="logo" />
+    <h1>Termin buchen</h1>
+  </header>
+
+  <main class="container">
+    <form id="bookingForm">
+      <label>
+        Service
+        <select id="serviceSelect" required></select>
+      </label>
+
+      <div class="grid">
+        <label>
+          Friseur:in
+          <select id="stylistSelect">
+            <option value="">Egal (auto-zuweisen)</option>
+            <option value="Aylin">Aylin</option>
+            <option value="Marco">Marco</option>
+          </select>
+        </label>
+
+        <label>
+          Datum
+          <input type="date" id="dateInput" required />
+        </label>
+
+        <label>
+          Uhrzeit
+          <select id="timeSelect" required></select>
+        </label>
+      </div>
+
+      <label>
+        Vorname & Nachname
+        <input type="text" id="nameInput" required />
+      </label>
+
+      <label>
+        E-Mail (Bestätigung)
+        <input type="email" id="emailInput" required />
+      </label>
+
+      <div id="summary" class="summary"></div>
+
+      <button type="submit" class="primary">Jetzt mit Anzahlung reservieren</button>
+      <p class="note">Durch die Anzahlung sichern wir deinen Slot. Kosten werden beim Checkout verrechnet.</p>
+    </form>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <script>
+    (function(){ emailjs.init("YOUR_EMAILJS_PUBLIC_KEY"); })();
+  </script>
+  <script src="js/app.js"></script>
+</body>
+</html>
