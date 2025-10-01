@@ -1,4 +1,5 @@
 const servicesUrl = 'data/services.json';
+const OV_KEY = 'nnz-services-overrides';
 
 const serviceSelect = document.getElementById('serviceSelect');
 const stylistSelect = document.getElementById('stylistSelect');
@@ -8,27 +9,64 @@ const nameInput = document.getElementById('nameInput');
 const emailInput = document.getElementById('emailInput');
 const summaryBox = document.getElementById('summary');
 const form = document.getElementById('bookingForm');
+const submitBtn = form.querySelector('button[type="submit"]');
 
 let services = [];
+let overrides = {};
 let selectedService = null;
 
+function loadOverrides(){
+  try {
+    overrides = JSON.parse(localStorage.getItem(OV_KEY) || '{}');
+  } catch { overrides = {}; }
+}
+
+function mergedServiceById(id){
+  const base = services.find(s => s.id === id);
+  const ov = overrides[id] || {};
+  return { ...base, ...ov };
+}
+
 async function loadServices() {
+  loadOverrides();
   const res = await fetch(servicesUrl);
   services = await res.json();
+
+  // Falls requireDeposit im Override fehlt, sinnvoll vorbelegen
   services.forEach(s => {
+    if (!overrides[s.id] || typeof overrides[s.id].requireDeposit === 'undefined'){
+      const def = Boolean(s.paymentLink);
+      overrides[s.id] = { ...(overrides[s.id]||{}), requireDeposit: def };
+    }
+  });
+
+  // Dropdown
+  services.forEach(s => {
+    const ms = { ...s, ...(overrides[s.id]||{}) };
     const opt = document.createElement('option');
-    opt.value = s.id; opt.textContent = `${s.name} (${s.durationMin} Min)`;
+    opt.value = s.id;
+    const dep = ms.requireDeposit ? ` – Anz. ${ms.deposit ?? s.deposit ?? 0}€` : ' – keine Anzahlung';
+    opt.textContent = `${s.name} (${ms.durationMin} Min${dep ? '' : ''})`;
     serviceSelect.appendChild(opt);
   });
-  // Preselect first
+
   if (services.length) {
     serviceSelect.value = services[0].id;
     updateSelectedService();
   }
 }
 
+function updateSubmitButton(ms){
+  if (ms.requireDeposit) {
+    submitBtn.textContent = 'Jetzt mit Anzahlung reservieren';
+  } else {
+    submitBtn.textContent = 'Termin kostenlos reservieren';
+  }
+}
+
 function updateSelectedService() {
-  selectedService = services.find(s => s.id === serviceSelect.value);
+  selectedService = mergedServiceById(serviceSelect.value);
+  updateSubmitButton(selectedService);
   updateSummary();
   generateSlots();
 }
@@ -37,15 +75,13 @@ function generateSlots() {
   timeSelect.innerHTML = '';
   if (!dateInput.value || !selectedService) return;
 
-  // Demo: Öffnungszeiten 09:00–18:00, 30-Min Raster
+  // Demo Öffnungszeiten 09–18 Uhr, 30-Min Raster
   const open = 9, close = 18;
-  const step = 30; // min
+  const step = 30;
   const duration = selectedService.durationMin;
 
-  // Demo-"Belegt" aus localStorage laden
   const key = `bookings-${dateInput.value}`;
   const dayBookings = JSON.parse(localStorage.getItem(key) || '[]');
-
   const pad = n => n.toString().padStart(2,'0');
 
   for (let h = open; h <= close; h++) {
@@ -55,11 +91,9 @@ function generateSlots() {
       if (endMin > close * 60) continue;
 
       const slot = `${pad(h)}:${pad(m)}`;
-      // Kollision prüfen (Demo, pro Stylist getrennt)
       const stylist = stylistSelect.value || 'ANY';
       const overlaps = dayBookings.some(b =>
-        b.stylist === stylist &&
-        !(endMin <= b.startMin || startMin >= b.endMin)
+        b.stylist === stylist && !(endMin <= b.startMin || startMin >= b.endMin)
       );
       if (!overlaps) {
         const opt = document.createElement('option');
@@ -80,10 +114,14 @@ function generateSlots() {
 
 function updateSummary() {
   if (!selectedService) { summaryBox.textContent = ''; return; }
+  const dep = selectedService.requireDeposit
+    ? (selectedService.deposit ?? selectedService.deposit ?? 0) + ' €'
+    : 'Keine';
+
   summaryBox.innerHTML = `
     <strong>Zusammenfassung</strong><br/>
     Service: ${selectedService.name} (${selectedService.durationMin} Min)<br/>
-    Anzahlung: ${selectedService.deposit.toFixed(2)} €<br/>
+    Anzahlung: ${dep}<br/>
     Friseur: ${stylistSelect.value || 'egal'}<br/>
     Datum/Uhrzeit: ${dateInput.value || '-'} ${timeSelect.value || ''}
   `;
@@ -99,7 +137,7 @@ form.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!selectedService || !timeSelect.value) return;
 
-  // Demo-Buchung lokal "blocken"
+  // Belegen (Demo, lokal)
   const [h, m] = timeSelect.value.split(':').map(Number);
   const startMin = h*60 + m;
   const endMin = startMin + selectedService.durationMin;
@@ -109,7 +147,7 @@ form.addEventListener('submit', async (e) => {
   dayBookings.push({ stylist, startMin, endMin });
   localStorage.setItem(key, JSON.stringify(dayBookings));
 
-  // Demo-Bestätigungs-Mail via EmailJS
+  // E-Mail (optional, Demo)
   try {
     await emailjs.send("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", {
       to_email: emailInput.value,
@@ -117,14 +155,17 @@ form.addEventListener('submit', async (e) => {
       service_name: selectedService.name,
       service_date: dateInput.value,
       service_time: timeSelect.value,
-      deposit_amount: selectedService.deposit + " €"
+      deposit_amount: selectedService.requireDeposit ? (selectedService.deposit ?? 0) + " €" : "0 €",
+      salon_name: "Salon Nunzio"
     });
-  } catch (_) {
-    // Fürs Demo ok, wenn Mail mal nicht klappt
-  }
+  } catch (_) {}
 
-  // Weiterleitung zur Anzahlung (Payment Link)
-  window.location.href = selectedService.paymentLink;
+  // Payment-Flow abhängig von requireDeposit
+  if (selectedService.requireDeposit && selectedService.paymentLink) {
+    window.location.href = selectedService.paymentLink;
+  } else {
+    window.location.href = 'thanks.html';
+  }
 });
 
 // Init defaults
