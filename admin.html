@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Salon Nunzio – Admin</title>
+  <title>Salon – Admin</title>
   <link rel="stylesheet" href="assets/styles.css" />
   <style>
     .admin-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
@@ -18,8 +18,9 @@
 </head>
 <body>
   <header class="topbar">
-    <img src="assets/logo.svg" alt="Salon Nunzio" class="logo" />
+    <img src="assets/logo.svg" alt="Salon" class="logo" />
     <h1>Admin – Einstellungen</h1>
+    <a href="./" class="primary" style="text-decoration:none; display:inline-block;">Kundenseite</a>
   </header>
 
   <main class="container" id="app">
@@ -64,7 +65,7 @@
 
   <script>
     // --- Simple Demo-PIN (lokal). Passe gern an:
-    const ADMIN_PIN = "nunzio123";
+    const ADMIN_PIN = "admin";
 
     const el = sel => document.querySelector(sel);
     const servicesUrl = 'data/services.json';
