@@ -31,6 +31,13 @@ let overrides = {};
 let selectedService = null;
 
 // ---------- Utils ----------
+
+function refreshSubmitState() {
+  // Wenn keine Auswahl möglich ist (nur Platzhalter/disabled Option), Button sperren
+  const noRealOption = !timeSelect.options.length || timeSelect.options[0].disabled;
+  submitBtn.disabled = noRealOption || isClosed(dateInput.value);
+}
+
 function loadOverrides(){
   try { overrides = JSON.parse(localStorage.getItem(OV_KEY) || '{}'); }
   catch { overrides = {}; }
@@ -122,6 +129,7 @@ function generateSlots() {
     opt.disabled = true;
     timeSelect.appendChild(opt);
   }
+  refreshSubmitState();
 }
 
 // ---------- Summary ----------
@@ -196,10 +204,10 @@ function updateSelectedService() {
   generateSlots();
 }
 
-serviceSelect.addEventListener('change', () => { updateSelectedService(); generateSlots(); });
-stylistSelect.addEventListener('change', () => { updateSummary(); generateSlots(); });
-dateInput.addEventListener('change', () => { generateSlots(); updateSummary(); });
-timeSelect.addEventListener('change', updateSummary);
+serviceSelect.addEventListener('change', () => { updateSelectedService(); generateSlots(); refreshSubmitState(); });
+stylistSelect.addEventListener('change', () => { updateSummary(); generateSlots(); refreshSubmitState(); });
+dateInput.addEventListener('change', () => { generateSlots(); updateSummary(); refreshSubmitState(); });
+timeSelect.addEventListener('change', () => { updateSummary(); refreshSubmitState(); });
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
